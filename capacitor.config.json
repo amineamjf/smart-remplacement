@@ -1,0 +1,6 @@
+{
+  "appId": "com.smartremplacement.app",
+  "appName": "Smart Remplacement",
+  "webDir": "www",
+  "android": { "allowMixedContent": true }
+}
