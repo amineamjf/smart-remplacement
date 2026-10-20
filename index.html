@@ -299,9 +299,19 @@ if(pr)pr.textContent='';return S}
 async function doImpDb(){if(!dbi||dbi.busy)return;if(!dbi.map.num)return say('Associez au moins la colonne « Numéro compteur »');dbi.busy=1;const t=dbi.S.tables[dbi.sel];try{const p=await applyDb(true);if(!p.add&&!p.fill){dbi.busy=0;return say('Rien à importer : tout est déjà à jour'+(p.skip?' ('+p.skip+' lignes sans n° compteur ignorées)':''))}
 const msg='Table « '+t.name+' » : '+p.n+' lignes\n➕ '+p.add+' nouveaux compteurs\n✏️ '+p.fill+' compteurs complétés (champs vides seulement)\n= '+p.same+' déjà à jour\n🔁 '+p.rep+' remplacements ajoutés · 🖼 '+p.ph+' photos ajoutées\n'+(p.conf?'⚠ '+p.conf+' valeur(s) différente(s) ignorée(s) : vos données sont conservées\n':'')+(p.skip+p.dup?'Ignorés : '+p.skip+' sans n° compteur, '+p.dup+' doublons\n':'')+(p.phx?p.phx+' photo(s) non importable(s)\n':'')+'\nRien n\'est supprimé ni écrasé. Confirmer ?';
 if(!await ask(msg)){dbi.busy=0;return}const r=await applyDb(false);await loadAll();PC=null;dbi=null;say('✔ Import terminé : '+r.add+' ajoutés, '+r.fill+' complétés, '+r.ph+' photos');R()}catch(e){if(dbi)dbi.busy=0;say('❌ Import interrompu : '+e.message+'. Rien n\'a été supprimé, vous pouvez réessayer.')}}
-function saveBlob(b,n){const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=n;document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(a.href)},60000)}
+const isNative=()=>!!(window.Capacitor&&Capacitor.isNativePlatform&&Capacitor.isNativePlatform());
+async function nativeSave(b,n){
+ const P=Capacitor.Plugins,FS=P&&P.Filesystem;
+ if(!FS)throw new Error('Filesystem indisponible');
+ const data=await new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(String(r.result).split(',')[1]);r.onerror=()=>rej(r.error);r.readAsDataURL(b)});
+ try{await FS.writeFile({path:'SmartRemplacement/'+n,data,directory:'DOCUMENTS',recursive:true});say('✔ Enregistré dans Documents/SmartRemplacement/'+n);return}catch(e){}
+ const w=await FS.writeFile({path:n,data,directory:'CACHE'});
+ if(P.Share){await P.Share.share({title:n,files:[w.uri]});say('✔ Choisissez « Enregistrer » dans le menu de partage')}else throw new Error('Enregistrement impossible')
+}
+function saveBlob(b,n){if(isNative()){nativeSave(b,n).catch(e=>say('❌ '+(e&&e.message||e)));return}const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=n;document.body.appendChild(a);a.click();setTimeout(()=>{a.remove();URL.revokeObjectURL(a.href)},60000)}
   async function sendFile(b,n,type){
   if(!(b instanceof Blob)||!b.size)throw new Error('Le fichier préparé est vide.');
+  if(isNative()){await nativeSave(b,n);return}
   const url=URL.createObjectURL(b),d=document.createElement('div'),box=document.createElement('div'),h=document.createElement('h3'),p=document.createElement('p'),status=document.createElement('p'),save=document.createElement('a'),close=document.createElement('button');
   d.id='dlg';box.style.maxHeight='85vh';box.style.overflowY='auto';h.textContent='Fichier prêt';p.textContent=n+' · Choisissez une action pour enregistrer ou partager le fichier.';status.className='mut';status.setAttribute('role','status');save.href=url;save.download=n;save.className='btn';save.textContent='⬇ Télécharger le fichier';save.setAttribute('aria-label','Télécharger '+n);save.addEventListener('click',()=>{status.textContent='Téléchargement demandé. Vérifiez les téléchargements de votre navigateur. Si rien ne démarre, utilisez Partager / Enregistrer.';setTimeout(()=>URL.revokeObjectURL(url),120000)});
   close.className='s';close.textContent='Fermer';close.onclick=()=>{d.remove();setTimeout(()=>URL.revokeObjectURL(url),120000)};box.append(h,p,save,status);
