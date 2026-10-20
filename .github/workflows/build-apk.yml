@@ -29,6 +29,12 @@ jobs:
       - name: Add Android platform
         run: npx cap add android
 
+      - name: Generate app icons
+        run: |
+          mkdir -p assets && cp icon-only.png icon-foreground.png icon-background.png assets/
+          npm install @capacitor/assets --no-save
+          npx @capacitor/assets generate --android
+
       - name: Add permissions
         run: |
           python3 - <<'PY'
